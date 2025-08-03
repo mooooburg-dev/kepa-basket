@@ -20,52 +20,70 @@ export function ProductCard({
     : 0;
 
   return (
-    <Card>
-      <div className="flex items-start space-x-4">
+    <Card className="hover:scale-[1.02] transition-transform duration-300" padding="lg">
+      <div className="flex items-start gap-6">
         <div className="flex-shrink-0">
           {product.imageUrl ? (
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              width={80}
-              height={80}
-              className="rounded-lg object-cover"
-            />
+            <div className="relative">
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                width={100}
+                height={100}
+                className="rounded-2xl object-cover shadow-md"
+              />
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">🛒</span>
+              </div>
+            </div>
           ) : (
-            <div className="w-20 h-20 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <div className="w-12 h-12 bg-yellow-300 rounded-full relative">
-                <div className="absolute top-1 left-1 w-2 h-2 bg-orange-400 rounded-full"></div>
-                <div className="absolute bottom-1 right-1 w-3 h-3 bg-orange-500 rounded-full"></div>
+            <div className="w-[100px] h-[100px] bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center shadow-md">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl relative flex items-center justify-center">
+                <span className="text-white text-3xl">📦</span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex-1 space-y-2">
-          <h3 className="font-medium text-black">
+        <div className="flex-1 space-y-4">
+          <h3 className="font-semibold text-gray-900 text-lg leading-snug">
             {truncateText(product.name, UI_CONFIG.MAX_PRODUCT_NAME_LENGTH)}
           </h3>
 
-          <div className="flex items-center space-x-2">
-            <span className="text-blue-600 font-semibold">
-              {product.storeName || 'coupang'}
-            </span>
-            <span className="text-black font-bold">
-              {formatPrice(product.price)}
-            </span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="px-4 py-2 bg-orange-100 text-orange-700 text-sm font-semibold rounded-full">
+                {product.storeName || '쿠팡'}
+              </span>
+            </div>
+            
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-bold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+            </div>
           </div>
 
           {comparisonProduct && priceDifference !== 0 && (
-            <p className="text-sm text-gray-600">
+            <div className={`p-4 rounded-2xl text-base font-medium ${
+              priceDifference > 0 
+                ? 'bg-green-50 text-green-700 border-2 border-green-200'
+                : 'bg-blue-50 text-blue-700 border-2 border-blue-200'
+            }`}>
               {priceDifference > 0
-                ? `쿠팡이 ${formatPrice(Math.abs(priceDifference))} 더 저렴해요`
-                : `현재 상품이 ${formatPrice(
-                    Math.abs(priceDifference)
-                  )} 더 저렴해요`}
-            </p>
+                ? `💰 ${formatPrice(Math.abs(priceDifference))} 더 저렴해요!`
+                : `📈 현재 상품이 ${formatPrice(Math.abs(priceDifference))} 더 비싸요`}
+            </div>
           )}
 
-          <Button variant="outline" size="sm" fullWidth onClick={onBuyClick}>
+          <Button 
+            variant="primary" 
+            size="md" 
+            fullWidth 
+            onClick={onBuyClick}
+            icon="🛍️"
+            className="mt-6"
+          >
             쿠팡에서 구매하기
           </Button>
         </div>

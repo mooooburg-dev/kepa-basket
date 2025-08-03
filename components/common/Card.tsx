@@ -5,19 +5,31 @@ interface CardProps {
   children: ReactNode;
   className?: string;
   padding?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'glass';
 }
 
-export function Card({ children, className, padding = 'md' }: CardProps) {
+export function Card({ 
+  children, 
+  className, 
+  padding = 'md', 
+  variant = 'glass' 
+}: CardProps) {
   const paddingSizes = {
-    sm: 'p-2',
-    md: 'p-4',
-    lg: 'p-6',
+    sm: 'p-5',
+    md: 'p-6',
+    lg: 'p-8',
+  };
+
+  const variants = {
+    default: 'bg-white border border-gray-200 shadow-sm',
+    glass: 'glass-card fade-in',
   };
 
   return (
     <div
       className={classNames(
-        'bg-white rounded-xl shadow-sm border border-gray-100',
+        'rounded-3xl',
+        variants[variant],
         paddingSizes[padding],
         className
       )}
