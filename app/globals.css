@@ -19,8 +19,8 @@
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
   --font-sans:
-    'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, sans-serif;
+    'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
@@ -89,7 +89,7 @@ body {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.1),
     0 4px 16px rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -97,14 +97,14 @@ body {
 
 .glass-card:hover {
   transform: translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.15),
     0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .floating-button {
   background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  box-shadow: 
+  box-shadow:
     0 10px 25px rgba(249, 115, 22, 0.3),
     0 4px 12px rgba(249, 115, 22, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -112,7 +112,7 @@ body {
 
 .floating-button:hover {
   transform: translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 15px 35px rgba(249, 115, 22, 0.4),
     0 6px 16px rgba(249, 115, 22, 0.25);
 }
@@ -141,8 +141,12 @@ body {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .fade-in {
