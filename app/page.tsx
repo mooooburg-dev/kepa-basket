@@ -17,8 +17,18 @@ declare global {
 }
 
 export default function Home() {
-  const { keyword, setKeyword, loading, error, result } = useSearch();
+  const { keyword, setKeyword, loading, error, result, searchImmediately } =
+    useSearch();
   const [scannedProduct] = useState<Product | undefined>(undefined);
+  const [consoleLogs, setConsoleLogs] = useState<
+    Array<{
+      level: 'log' | 'warn' | 'error';
+      message: string;
+      timestamp: string;
+      data?: any;
+    }>
+  >([]);
+  const [showConsole, setShowConsole] = useState(false);
 
   const openBarcode = () => {
     console.log('바코드 스캔 버튼 클릭됨');
@@ -39,17 +49,117 @@ export default function Home() {
     }
   };
 
-  // 바코드 스캔 결과 처리
+  // Console 로그 캡처
+  useEffect(() => {
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+    };
+
+    const addConsoleLog = (
+      level: 'log' | 'warn' | 'error',
+      message: string,
+      data?: any
+    ) => {
+      const logEntry = {
+        level,
+        message,
+        timestamp: new Date().toLocaleTimeString(),
+        data,
+      };
+      setConsoleLogs((prev) => [logEntry, ...prev].slice(0, 50)); // 최대 50개까지만 저장
+    };
+
+    // console.log 오버라이드
+    console.log = (...args: any[]) => {
+      originalConsole.log(...args);
+      const message = args
+        .map((arg) =>
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        )
+        .join(' ');
+      addConsoleLog('log', message, args.length > 1 ? args : undefined);
+    };
+
+    // console.warn 오버라이드
+    console.warn = (...args: any[]) => {
+      originalConsole.warn(...args);
+      const message = args
+        .map((arg) =>
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        )
+        .join(' ');
+      addConsoleLog('warn', message, args.length > 1 ? args : undefined);
+    };
+
+    // console.error 오버라이드
+    console.error = (...args: any[]) => {
+      originalConsole.error(...args);
+      const message = args
+        .map((arg) =>
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        )
+        .join(' ');
+      addConsoleLog('error', message, args.length > 1 ? args : undefined);
+    };
+
+    // 컴포넌트 언마운트 시 원래 console 복원
+    return () => {
+      console.log = originalConsole.log;
+      console.warn = originalConsole.warn;
+      console.error = originalConsole.error;
+    };
+  }, []);
+
+  // 바코드 스캔 결과 처리 및 메시지 표시
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      console.log('WebView에서 메시지 수신:', event.data);
+      // React Native WebView에서 온 메시지인지 확인
+      console.log('메시지 수신 이벤트:', {
+        data: event.data,
+        origin: event.origin,
+        source: event.source,
+      });
+
       try {
         const data =
           typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         console.log('파싱된 데이터:', data);
 
-        if (data?.type === 'barcode' && data?.barcode) {
-          console.log('바코드 데이터 설정:', data.barcode);
+        // 바코드 스캔 결과 처리
+        if (
+          data?.type &&
+          ['barcode_success', 'barcode_not_found', 'barcode_error'].includes(
+            data.type
+          )
+        ) {
+          console.log('바코드 스캔 결과 수신:', data);
+
+          // 성공한 경우 검색어로 설정하고 즉시 검색 실행
+          if (
+            data.type === 'barcode_success' &&
+            data.data?.productInfo?.productName
+          ) {
+            const productName = data.data.productInfo.productName;
+            
+            setKeyword(productName);
+            console.log(
+              '🔍 바코드 스캔 성공! 자동 가격 비교 검색 시작:',
+              productName
+            );
+            searchImmediately(productName);
+          } else if (data.data?.barcode) {
+            const barcode = data.data.barcode;
+            
+            setKeyword(barcode);
+            console.log('🔍 바코드 번호로 검색 시작:', barcode);
+            searchImmediately(barcode);
+          }
+        }
+        // 기존 바코드 형식 호환성 유지
+        else if (data?.type === 'barcode' && data?.barcode) {
+          console.log('기존 바코드 데이터 설정:', data.barcode);
           setKeyword(data.barcode);
         }
       } catch (error) {
@@ -163,6 +273,72 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Console 로그 표시 섹션 */}
+        {showConsole && consoleLogs.length > 0 && (
+          <div className="glass-card rounded-3xl p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <span className="text-lg">🖥️</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Console 로그 ({consoleLogs.length})
+              </h3>
+              <div className="ml-auto flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setConsoleLogs([])}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  지우기
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {consoleLogs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`rounded-xl p-3 border text-sm ${
+                    log.level === 'error'
+                      ? 'bg-red-50 border-red-200 text-red-800'
+                      : log.level === 'warn'
+                        ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                        : 'bg-white border-gray-200 text-gray-800'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span
+                      className={`text-xs font-mono px-2 py-1 rounded ${
+                        log.level === 'error'
+                          ? 'bg-red-100 text-red-700'
+                          : log.level === 'warn'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {log.level.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-500 font-mono">
+                      {log.timestamp}
+                    </span>
+                  </div>
+                  <div className="font-mono text-xs leading-relaxed">
+                    {log.message}
+                  </div>
+                  {log.data && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                        상세 데이터 보기
+                      </summary>
+                      <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Content Section */}
         <div className="space-y-8">
@@ -287,6 +463,27 @@ export default function Home() {
 
         {/* Enhanced Footer Spacing */}
         <div className="h-16"></div>
+      </div>
+
+      {/* Console 토글 버튼 (플로팅) */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setShowConsole(!showConsole)}
+          className={`w-14 h-14 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center text-white font-bold text-lg ${
+            showConsole
+              ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700'
+              : consoleLogs.length > 0
+                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'
+          }`}
+        >
+          {showConsole ? '✕' : '🖥️'}
+        </button>
+        {consoleLogs.length > 0 && !showConsole && (
+          <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+            {consoleLogs.length > 99 ? '99+' : consoleLogs.length}
+          </div>
+        )}
       </div>
     </main>
   );
