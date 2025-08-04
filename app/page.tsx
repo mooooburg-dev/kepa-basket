@@ -21,9 +21,12 @@ export default function Home() {
   const [scannedProduct] = useState<Product | undefined>(undefined);
 
   const openBarcode = () => {
+    console.log('바코드 스캔 버튼 클릭됨');
     if (window?.ReactNativeWebView) {
+      console.log('React Native WebView가 감지됨. scanBarcode 메시지 전송중...');
       window?.ReactNativeWebView?.postMessage('scanBarcode');
     } else {
+      console.log('React Native WebView가 감지되지 않음');
       alert('앱에서만 바코드 스캔이 가능합니다');
     }
   };
@@ -37,8 +40,17 @@ export default function Home() {
   // 바코드 스캔 결과 처리
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'barcode' && event.data?.barcode) {
-        setKeyword(event.data.barcode);
+      console.log('WebView에서 메시지 수신:', event.data);
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        console.log('파싱된 데이터:', data);
+        
+        if (data?.type === 'barcode' && data?.barcode) {
+          console.log('바코드 데이터 설정:', data.barcode);
+          setKeyword(data.barcode);
+        }
+      } catch (error) {
+        console.error('메시지 파싱 오류:', error, event.data);
       }
     };
 
