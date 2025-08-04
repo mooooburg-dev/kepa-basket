@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ads-partners.coupang.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   headers: async () => [
