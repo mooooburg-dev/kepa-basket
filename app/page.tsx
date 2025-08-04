@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Input } from '@/components/common';
 import { ProductCard } from '@/components/product';
+import { ProductRegistrationForm } from '@/components/product/ProductRegistrationForm';
 import { useSearch } from '@/hooks';
 import { APP_CONFIG } from '@/utils/constants';
 import { Product } from '@/types';
@@ -29,6 +30,8 @@ export default function Home() {
     }>
   >([]);
   const [showConsole, setShowConsole] = useState(false);
+  const [showProductRegistration, setShowProductRegistration] = useState(false);
+  const [unregisteredBarcode, setUnregisteredBarcode] = useState<string>('');
 
   const openBarcode = () => {
     console.log('바코드 스캔 버튼 클릭됨');
@@ -46,6 +49,57 @@ export default function Home() {
   const handleProductClick = (product: Product) => {
     if (product.link) {
       window.open(product.link, '_blank');
+    }
+  };
+
+  // 상품 등록 핸들러
+  const handleProductRegistration = async (productData: any) => {
+    try {
+      console.log('📝 상품 등록 시작:', productData);
+      
+      const response = await fetch('/api/products/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log('✅ 상품 등록 완료:', result);
+        
+        // 성공 메시지 표시
+        alert(`✅ 상품 등록 완료!\n\n상품명: ${productData.productName}\n바코드: ${productData.barcode}\n\n이제 이 상품으로 가격 비교를 시작합니다.`);
+        
+        // 등록된 상품으로 검색 실행  
+        setKeyword(productData.productName);
+        searchImmediately(productData.productName);
+        
+        // 등록 폼 닫기
+        setShowProductRegistration(false);
+        setUnregisteredBarcode('');
+      } else {
+        console.error('❌ 상품 등록 실패:', result);
+        alert(`❌ 상품 등록 실패\n\n${result.error || '알 수 없는 오류가 발생했습니다.'}`);
+      }
+    } catch (error) {
+      console.error('💥 상품 등록 중 오류:', error);
+      alert('❌ 상품 등록 중 오류가 발생했습니다.\n네트워크 연결을 확인해주세요.');
+    }
+  };
+
+  // 상품 등록 취소 핸들러
+  const handleRegistrationCancel = () => {
+    setShowProductRegistration(false);
+    setUnregisteredBarcode('');
+    
+    // 취소 시 바코드 번호로라도 검색해보기
+    if (unregisteredBarcode) {
+      console.log('📝 등록 취소 - 바코드 번호로 검색 시도:', unregisteredBarcode);
+      setKeyword(unregisteredBarcode);
+      searchImmediately(unregisteredBarcode);
     }
   };
 
@@ -152,9 +206,20 @@ export default function Home() {
           } else if (data.data?.barcode) {
             const barcode = data.data.barcode;
             
-            setKeyword(barcode);
-            console.log('🔍 바코드 번호로 검색 시작:', barcode);
-            searchImmediately(barcode);
+            // 제품을 찾지 못한 경우 등록 폼 표시 (검색하지 않음)
+            if (data.type === 'barcode_not_found') {
+              console.log('🔍 제품 미등록 - 등록 폼 표시');
+              setUnregisteredBarcode(barcode);
+              setShowProductRegistration(true);
+              // 여기서는 검색을 실행하지 않음 - 사용자가 등록하거나 취소해야 함
+              return; // 추가적인 처리 방지
+            }
+            // 오류가 발생한 경우에만 바코드 번호로 검색 시도
+            else if (data.type === 'barcode_error') {
+              setKeyword(barcode);
+              console.log('🔍 API 오류 - 바코드 번호로 검색 시도:', barcode);
+              searchImmediately(barcode);
+            }
           }
         }
         // 기존 바코드 형식 호환성 유지
@@ -337,6 +402,18 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* 상품 등록 폼 */}
+        {showProductRegistration && (
+          <div className="mb-8">
+            <ProductRegistrationForm
+              initialBarcode={unregisteredBarcode}
+              onSubmit={handleProductRegistration}
+              onCancel={handleRegistrationCancel}
+              loading={loading}
+            />
           </div>
         )}
 
