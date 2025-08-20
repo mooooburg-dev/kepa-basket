@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const keyword = searchParams.get('keyword');
+    const skipExtraction = searchParams.get('skipExtraction') === 'true';
 
     if (!keyword) {
       return NextResponse.json(
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await searchCoupangProducts(keyword);
+    const result = await searchCoupangProducts(keyword, 0.3, skipExtraction);
 
     return NextResponse.json(result, {
       headers: {

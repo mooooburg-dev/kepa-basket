@@ -47,7 +47,10 @@ export function useSearch(initialKeyword: string = '') {
   }, [debouncedKeyword]);
 
   // 수동 검색 함수 (디바운스 없이 즉시 실행)
-  const searchImmediately = async (searchKeyword: string) => {
+  const searchImmediately = async (
+    searchKeyword: string,
+    skipExtraction: boolean = false
+  ) => {
     if (!searchKeyword.trim()) {
       setResult(null);
       return;
@@ -57,9 +60,8 @@ export function useSearch(initialKeyword: string = '') {
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/search?keyword=${encodeURIComponent(searchKeyword)}`
-      );
+      const searchUrl = `/api/search?keyword=${encodeURIComponent(searchKeyword)}${skipExtraction ? '&skipExtraction=true' : ''}`;
+      const response = await fetch(searchUrl);
 
       const searchResult = await response.json();
 
