@@ -90,12 +90,16 @@ export function BarcodeResult({ result, onSearch }: BarcodeResultProps) {
   };
 
   return (
-    <div className={`bg-gradient-to-r ${getStatusColor()} border-2 rounded-3xl p-6 mb-6`}>
+    <div
+      className={`bg-gradient-to-r ${getStatusColor()} border-2 rounded-3xl p-6 mb-6`}
+    >
       {/* 헤더 */}
       <div className="flex items-center gap-4 mb-6">
         <div className="text-3xl">{getStatusIcon()}</div>
         <div>
-          <h3 className="text-xl font-bold text-gray-900">{getStatusTitle()}</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            {getStatusTitle()}
+          </h3>
           <p className="text-sm text-gray-600">스캔 ID: {data.debug.scanId}</p>
         </div>
       </div>
@@ -106,15 +110,21 @@ export function BarcodeResult({ result, onSearch }: BarcodeResultProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">바코드:</span>
-            <span className="font-mono font-bold text-gray-900">{data.barcode}</span>
+            <span className="font-mono font-bold text-gray-900">
+              {data.barcode}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">길이:</span>
-            <span className="text-gray-900">{data.debug.barcodeLength}자리</span>
+            <span className="text-gray-900">
+              {data.debug.barcodeLength}자리
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">스캔 시간:</span>
-            <span className="text-gray-900">{new Date(data.debug.scanTime).toLocaleString()}</span>
+            <span className="text-gray-900">
+              {new Date(data.debug.scanTime).toLocaleString()}
+            </span>
           </div>
         </div>
       </div>
@@ -149,14 +159,16 @@ export function BarcodeResult({ result, onSearch }: BarcodeResultProps) {
               </span>
             </div>
           </div>
-          
+
           {/* 자동 검색 안내 및 수동 검색 버튼 */}
           <div className="mt-4 space-y-2">
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
               <span className="text-lg">✅</span>
-              <span className="font-medium">자동으로 가격 비교 검색이 실행되었습니다!</span>
+              <span className="font-medium">
+                자동으로 가격 비교 검색이 실행되었습니다!
+              </span>
             </div>
-            
+
             {onSearch && (
               <button
                 onClick={() => onSearch(data.productInfo!.productName)}
@@ -201,20 +213,27 @@ export function BarcodeResult({ result, onSearch }: BarcodeResultProps) {
           {data.debug.searchedAPIs && (
             <div className="flex justify-between">
               <span className="text-gray-600">검색한 API:</span>
-              <span className="text-gray-900">{data.debug.searchedAPIs.join(', ')}</span>
+              <span className="text-gray-900">
+                {data.debug.searchedAPIs.join(', ')}
+              </span>
             </div>
           )}
           <div className="flex justify-between">
             <span className="text-gray-600">검색 결과:</span>
-            <span className={`text-sm px-2 py-1 rounded ${
-              data.debug.searchResult === 'found' 
-                ? 'bg-green-100 text-green-800' 
+            <span
+              className={`text-sm px-2 py-1 rounded ${
+                data.debug.searchResult === 'found'
+                  ? 'bg-green-100 text-green-800'
+                  : data.debug.searchResult === 'not_found'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+              }`}
+            >
+              {data.debug.searchResult === 'found'
+                ? '발견됨'
                 : data.debug.searchResult === 'not_found'
-                ? 'bg-yellow-100 text-yellow-800'
-                : 'bg-red-100 text-red-800'
-            }`}>
-              {data.debug.searchResult === 'found' ? '발견됨' : 
-               data.debug.searchResult === 'not_found' ? '찾을 수 없음' : '오류'}
+                  ? '찾을 수 없음'
+                  : '오류'}
             </span>
           </div>
         </div>

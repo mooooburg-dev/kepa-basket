@@ -63,11 +63,14 @@ export function ProductRegistrationForm({
     }
   };
 
-  const handleInputChange = (field: keyof ProductRegistrationData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (
+    field: keyof ProductRegistrationData,
+    value: string
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // 에러가 있던 필드는 입력 시 에러 제거
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
 
@@ -80,7 +83,7 @@ export function ProductRegistrationForm({
     '전자제품',
     '도서',
     '완구',
-    '기타'
+    '기타',
   ];
 
   const commonCountries = [
@@ -91,7 +94,7 @@ export function ProductRegistrationForm({
     '독일',
     '프랑스',
     '이탈리아',
-    '기타'
+    '기타',
   ];
 
   return (
@@ -243,7 +246,6 @@ export function ProductRegistrationForm({
             variant="primary"
             size="lg"
             fullWidth
-            loading={loading}
             disabled={loading}
           >
             {loading ? '등록 중...' : '상품 등록'}

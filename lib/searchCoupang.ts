@@ -103,7 +103,7 @@ export async function searchCoupangProducts(
       sortedProducts.length >= MIN_RESULTS
     ) {
       filteredProducts = sortedProducts.slice(0, MIN_RESULTS);
-      console.log(`유사도 임계값 완화: 최소 ${MIN_RESULTS}개 결과 확보`);
+      console.warn(`유사도 임계값 완화: 최소 ${MIN_RESULTS}개 결과 확보`);
     }
 
     // similarity 필드 제거하고 최종 결과 생성
@@ -111,10 +111,10 @@ export async function searchCoupangProducts(
       ({ similarity: _similarity, ...product }) => product
     );
 
-    console.log(
+    console.warn(
       `쿠팡 검색 결과 필터링: ${allProducts.length}개 → ${finalProducts.length}개`
     );
-    console.log(
+    console.warn(
       '상위 5개 유사도 점수:',
       sortedProducts.slice(0, 5).map((p) => ({
         name: p.name,

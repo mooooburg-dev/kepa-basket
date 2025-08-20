@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 임시 상품 데이터 저장소 (실제 운영에서는 데이터베이스 사용)
-let registeredProducts: Array<{
+const registeredProducts: Array<{
   id: string;
   barcode: string;
   productName: string;
@@ -16,14 +16,21 @@ let registeredProducts: Array<{
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { barcode, productName, company, country, category, description } = body;
+    const { barcode, productName, company, country, category, description } =
+      body;
 
     // 필수 필드 검증
     if (!barcode || !productName || !company || !country || !category) {
       return NextResponse.json(
-        { 
+        {
           error: '필수 필드가 누락되었습니다.',
-          required: ['barcode', 'productName', 'company', 'country', 'category']
+          required: [
+            'barcode',
+            'productName',
+            'company',
+            'country',
+            'category',
+          ],
         },
         { status: 400 }
       );
@@ -38,16 +45,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 이미 등록된 바코드인지 확인
-    const existingProduct = registeredProducts.find(p => p.barcode === barcode);
+    const existingProduct = registeredProducts.find(
+      (p) => p.barcode === barcode
+    );
     if (existingProduct) {
       return NextResponse.json(
-        { 
+        {
           error: '이미 등록된 바코드입니다.',
           existingProduct: {
             productName: existingProduct.productName,
             company: existingProduct.company,
-            registeredAt: existingProduct.registeredAt
-          }
+            registeredAt: existingProduct.registeredAt,
+          },
         },
         { status: 409 }
       );
@@ -68,22 +77,21 @@ export async function POST(request: NextRequest) {
 
     registeredProducts.push(newProduct);
 
-    console.log(`✅ 새 상품 등록 완료: ${productName} (바코드: ${barcode})`);
+    console.warn(`✅ 새 상품 등록 완료: ${productName} (바코드: ${barcode})`);
 
     return NextResponse.json({
       success: true,
       message: '상품이 성공적으로 등록되었습니다.',
       product: newProduct,
-      totalRegistered: registeredProducts.length
+      totalRegistered: registeredProducts.length,
     });
-
   } catch (error) {
     console.error('상품 등록 API 오류:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: '상품 등록 중 오류가 발생했습니다.',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
@@ -100,25 +108,29 @@ export async function GET(request: NextRequest) {
 
     if (barcode) {
       // 특정 바코드 조회
-      const product = registeredProducts.find(p => p.barcode === barcode);
+      const product = registeredProducts.find((p) => p.barcode === barcode);
       if (product) {
         return NextResponse.json({
           success: true,
           product,
-          found: true
+          found: true,
         });
       } else {
         return NextResponse.json({
           success: false,
           found: false,
-          message: '등록된 상품을 찾을 수 없습니다.'
+          message: '등록된 상품을 찾을 수 없습니다.',
         });
       }
     } else {
       // 전체 목록 조회 (페이징)
       const totalCount = registeredProducts.length;
       const products = registeredProducts
-        .sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.registeredAt).getTime() -
+            new Date(a.registeredAt).getTime()
+        )
         .slice(offset, offset + limit);
 
       return NextResponse.json({
@@ -128,17 +140,17 @@ export async function GET(request: NextRequest) {
           total: totalCount,
           limit,
           offset,
-          hasMore: offset + limit < totalCount
-        }
+          hasMore: offset + limit < totalCount,
+        },
       });
     }
   } catch (error) {
     console.error('상품 조회 API 오류:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: '상품 조회 중 오류가 발생했습니다.',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
