@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// 임시 상품 데이터 저장소 (실제 운영에서는 데이터베이스 사용)
-const registeredProducts: Array<{
-  id: string;
-  barcode: string;
-  productName: string;
-  company: string;
-  country: string;
-  category: string;
-  description?: string;
-  registeredAt: string;
-  updatedAt: string;
-}> = [];
+import {
+  insertProduct,
+  getProductByBarcode,
+  getAllProducts,
+  ProductData,
+} from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,17 +38,15 @@ export async function POST(request: NextRequest) {
     }
 
     // 이미 등록된 바코드인지 확인
-    const existingProduct = registeredProducts.find(
-      (p) => p.barcode === barcode
-    );
-    if (existingProduct) {
+    const existingResult = getProductByBarcode(barcode);
+    if (existingResult.success) {
       return NextResponse.json(
         {
           error: '이미 등록된 바코드입니다.',
           existingProduct: {
-            productName: existingProduct.productName,
-            company: existingProduct.company,
-            registeredAt: existingProduct.registeredAt,
+            productName: existingResult.product?.productName,
+            company: existingResult.product?.company,
+            createdAt: existingResult.product?.createdAt,
           },
         },
         { status: 409 }
@@ -63,28 +54,36 @@ export async function POST(request: NextRequest) {
     }
 
     // 새 상품 등록
-    const newProduct = {
-      id: `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const productData: ProductData = {
       barcode,
       productName: productName.trim(),
       company: company.trim(),
       country: country.trim(),
       category: category.trim(),
       description: description?.trim() || '',
-      registeredAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    registeredProducts.push(newProduct);
+    const result = insertProduct(productData);
 
-    console.warn(`✅ 새 상품 등록 완료: ${productName} (바코드: ${barcode})`);
+    if (result.success) {
+      console.warn(`✅ 새 상품 등록 완료: ${productName} (바코드: ${barcode})`);
 
-    return NextResponse.json({
-      success: true,
-      message: '상품이 성공적으로 등록되었습니다.',
-      product: newProduct,
-      totalRegistered: registeredProducts.length,
-    });
+      return NextResponse.json({
+        success: true,
+        message: result.message,
+        product: {
+          id: result.id,
+          ...productData,
+        },
+      });
+    } else {
+      return NextResponse.json(
+        {
+          error: result.error,
+        },
+        { status: 400 }
+      );
+    }
   } catch (error) {
     console.error('상품 등록 API 오류:', error);
 
@@ -108,11 +107,12 @@ export async function GET(request: NextRequest) {
 
     if (barcode) {
       // 특정 바코드 조회
-      const product = registeredProducts.find((p) => p.barcode === barcode);
-      if (product) {
+      const result = getProductByBarcode(barcode);
+
+      if (result.success) {
         return NextResponse.json({
           success: true,
-          product,
+          product: result.product,
           found: true,
         });
       } else {
@@ -124,25 +124,27 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // 전체 목록 조회 (페이징)
-      const totalCount = registeredProducts.length;
-      const products = registeredProducts
-        .sort(
-          (a, b) =>
-            new Date(b.registeredAt).getTime() -
-            new Date(a.registeredAt).getTime()
-        )
-        .slice(offset, offset + limit);
+      const result = getAllProducts(limit, offset);
 
-      return NextResponse.json({
-        success: true,
-        products,
-        pagination: {
-          total: totalCount,
-          limit,
-          offset,
-          hasMore: offset + limit < totalCount,
-        },
-      });
+      if (result.success) {
+        return NextResponse.json({
+          success: true,
+          products: result.products,
+          pagination: {
+            total: result.total,
+            limit,
+            offset,
+            hasMore: result.hasMore,
+          },
+        });
+      } else {
+        return NextResponse.json(
+          {
+            error: result.error,
+          },
+          { status: 500 }
+        );
+      }
     }
   } catch (error) {
     console.error('상품 조회 API 오류:', error);

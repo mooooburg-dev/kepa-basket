@@ -28,6 +28,7 @@ interface ConsoleLog {
 interface ProductRegistrationData {
   productName: string;
   barcode: string;
+  keyword?: string;
   company?: string;
   country?: string;
   category?: string;
@@ -37,8 +38,13 @@ interface BarcodeMessageData {
   type: string;
   data?: {
     barcode?: string;
+    scanId?: string;
+    timestamp?: number;
     productInfo?: {
       productName: string;
+      keyword?: string;
+      source?: string;
+      sourceLabel?: string;
     };
   };
   barcode?: string;
@@ -58,7 +64,48 @@ export default function Home() {
       window?.ReactNativeWebView?.postMessage('scanBarcode');
     } else {
       console.warn('React Native WebView가 감지되지 않음');
-      alert('앱에서만 바코드 스캔이 가능합니다');
+
+      // 개발 환경에서는 테스트용 바코드 입력 창 표시
+      if (process.env.NODE_ENV === 'development') {
+        const testBarcode = prompt(
+          '테스트용 바코드를 입력하세요 (예: 8801234567890):'
+        );
+        if (testBarcode) {
+          testBarcodeAPI(testBarcode);
+        }
+      } else {
+        alert('앱에서만 바코드 스캔이 가능합니다');
+      }
+    }
+  };
+
+  // 테스트용 바코드 API 호출 함수
+  const testBarcodeAPI = async (barcode: string) => {
+    try {
+      const response = await fetch(`/api/barcode/lookup?barcode=${barcode}`);
+      const data = await response.json();
+
+      // 실제 바코드 스캔 결과와 동일한 형태로 처리
+      const messageEvent = new MessageEvent('message', {
+        data: JSON.stringify(data),
+      });
+
+      window.dispatchEvent(messageEvent);
+    } catch (error) {
+      console.error('바코드 테스트 API 호출 오류:', error);
+
+      // 오류 시 barcode_error 타입으로 처리
+      const errorData = {
+        type: 'barcode_error',
+        data: { barcode },
+        error: '바코드 조회 중 오류가 발생했습니다.',
+      };
+
+      const messageEvent = new MessageEvent('message', {
+        data: JSON.stringify(errorData),
+      });
+
+      window.dispatchEvent(messageEvent);
     }
   };
 
@@ -189,8 +236,8 @@ export default function Home() {
 
   // searchImmediately를 useCallback으로 감싸기
   const memoizedSearchImmediately = useCallback(
-    (query: string) => {
-      searchImmediately(query);
+    (query: string, skipExtraction?: boolean) => {
+      searchImmediately(query, skipExtraction);
     },
     [searchImmediately]
   );
@@ -202,7 +249,38 @@ export default function Home() {
         const data: BarcodeMessageData =
           typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
 
-        // 바코드 스캔 결과 처리
+        // 새로운 바코드 스캔 데이터 형식 처리
+        if (data?.type === 'barcode_scanned' && data?.data?.barcode) {
+          const { barcode, scanId, timestamp: _timestamp } = data.data;
+          console.warn(`바코드 스캔됨: ${barcode} (scanId: ${scanId})`);
+
+          // 바코드 조회 API 호출
+          fetch(`/api/barcode/lookup?barcode=${barcode}`)
+            .then((response) => response.json())
+            .then((apiData) => {
+              // API 응답을 기존 형식으로 변환하여 처리
+              const messageEvent = new MessageEvent('message', {
+                data: JSON.stringify(apiData),
+              });
+              window.dispatchEvent(messageEvent);
+            })
+            .catch((error) => {
+              console.error('바코드 조회 API 호출 오류:', error);
+              // 오류 시 barcode_error 타입으로 처리
+              const errorData = {
+                type: 'barcode_error',
+                data: { barcode },
+                error: '바코드 조회 중 오류가 발생했습니다.',
+              };
+              const messageEvent = new MessageEvent('message', {
+                data: JSON.stringify(errorData),
+              });
+              window.dispatchEvent(messageEvent);
+            });
+          return; // 추가 처리 방지
+        }
+
+        // 기존 바코드 스캔 결과 처리 (API 응답)
         if (
           data?.type &&
           ['barcode_success', 'barcode_not_found', 'barcode_error'].includes(
@@ -210,13 +288,16 @@ export default function Home() {
           )
         ) {
           // 성공한 경우 검색어로 설정하고 즉시 검색 실행
-          if (
-            data.type === 'barcode_success' &&
-            data.data?.productInfo?.productName
-          ) {
-            const productName = data.data.productInfo.productName;
-            setKeyword(productName);
-            memoizedSearchImmediately(productName);
+          if (data.type === 'barcode_success' && data.data?.productInfo) {
+            // keyword가 있으면 keyword를, 없으면 productName을 사용
+            const searchTerm =
+              data.data.productInfo.keyword ||
+              data.data.productInfo.productName;
+            // 바코드 조회로 받은 모든 상품은 keyword 추출 건너뛰기
+            // (로컬 DB는 저장된 keyword 사용, 외부 API는 이미 제조사명 제거된 상태)
+            const shouldSkipExtraction = true;
+            setKeyword(searchTerm);
+            memoizedSearchImmediately(searchTerm, shouldSkipExtraction);
           } else if (data.data?.barcode) {
             const barcode = data.data.barcode;
 

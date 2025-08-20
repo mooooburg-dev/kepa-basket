@@ -6,6 +6,7 @@ import { Button, Input } from '@/components/common';
 interface ProductRegistrationData {
   barcode: string;
   productName: string;
+  keyword?: string;
   company: string;
   country: string;
   category: string;
