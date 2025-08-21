@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getProductByBarcode,
   insertProduct,
+  initializeDatabase,
   ProductData,
 } from '@/lib/database';
 import {
@@ -47,9 +48,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 데이터베이스 초기화 (필요시)
+    await initializeDatabase();
+
     // 단계 1: 등록된 상품 DB에서 바코드 조회
-    console.warn(`단계 1: SQLite DB 조회 - 바코드 ${barcode}`);
-    const localResult = getProductByBarcode(barcode);
+    console.warn(`단계 1: PostgreSQL DB 조회 - 바코드 ${barcode}`);
+    const localResult = await getProductByBarcode(barcode);
 
     if (localResult.success && localResult.product) {
       // 로컬 DB에서 발견된 경우
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest) {
             country: localResult.product.country,
             category: localResult.product.category,
             description: localResult.product.description,
-            source: 'SQLite',
+            source: 'PostgreSQL',
             sourceLabel: '등록된 상품',
             createdAt: localResult.product.createdAt,
             updatedAt: localResult.product.updatedAt,
@@ -101,7 +105,7 @@ export async function GET(request: NextRequest) {
       };
 
       try {
-        const saveResult = insertProduct(productData);
+        const saveResult = await insertProduct(productData);
         if (saveResult.success) {
           console.warn(
             `✅ C005 상품 로컬 DB 자동 저장: ${productData.productName}`
@@ -155,7 +159,7 @@ export async function GET(request: NextRequest) {
       };
 
       try {
-        const saveResult = insertProduct(productData);
+        const saveResult = await insertProduct(productData);
         if (saveResult.success) {
           console.warn(
             `✅ I2570 상품 로컬 DB 자동 저장: ${productData.productName}`
