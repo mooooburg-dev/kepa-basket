@@ -58,6 +58,8 @@ export default function Home() {
   const [showConsole, setShowConsole] = useState(false);
   const [showProductRegistration, setShowProductRegistration] = useState(false);
   const [unregisteredBarcode, setUnregisteredBarcode] = useState<string>('');
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
 
   const openBarcode = () => {
     if (window?.ReactNativeWebView) {
@@ -81,6 +83,9 @@ export default function Home() {
 
   // 테스트용 바코드 API 호출 함수
   const testBarcodeAPI = async (barcode: string) => {
+    setBarcodeLoading(true);
+    setScannedBarcode(barcode);
+    
     try {
       const response = await fetch(`/api/barcode/lookup?barcode=${barcode}`);
       const data = await response.json();
@@ -106,6 +111,9 @@ export default function Home() {
       });
 
       window.dispatchEvent(messageEvent);
+    } finally {
+      setBarcodeLoading(false);
+      setScannedBarcode('');
     }
   };
 
@@ -253,6 +261,9 @@ export default function Home() {
         if (data?.type === 'barcode_scanned' && data?.data?.barcode) {
           const { barcode, scanId, timestamp: _timestamp } = data.data;
           console.warn(`바코드 스캔됨: ${barcode} (scanId: ${scanId})`);
+          
+          setBarcodeLoading(true);
+          setScannedBarcode(barcode);
 
           // 바코드 조회 API 호출
           fetch(`/api/barcode/lookup?barcode=${barcode}`)
@@ -276,6 +287,10 @@ export default function Home() {
                 data: JSON.stringify(errorData),
               });
               window.dispatchEvent(messageEvent);
+            })
+            .finally(() => {
+              setBarcodeLoading(false);
+              setScannedBarcode('');
             });
           return; // 추가 처리 방지
         }
@@ -411,8 +426,38 @@ export default function Home() {
 
         {/* 결과 섹션 */}
         <div className="space-y-6">
-          {/* 로딩 상태 */}
-          {loading && (
+          {/* 바코드 조회 로딩 상태 */}
+          {barcodeLoading && (
+            <div className="glass-card rounded-3xl p-12 text-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+              <div className="inline-flex items-center justify-center mb-4">
+                <div className="animate-pulse">
+                  <span className="text-6xl">📱</span>
+                </div>
+              </div>
+              <div className="mb-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 rounded-full">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+                  <span className="text-blue-700 font-medium">바코드 조회 중...</span>
+                </div>
+              </div>
+              {scannedBarcode && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">스캔된 바코드</p>
+                  <p className="font-mono text-lg font-bold text-gray-900 bg-white px-3 py-2 rounded-lg inline-block">
+                    {scannedBarcode}
+                  </p>
+                </div>
+              )}
+              <div className="mt-6 flex items-center justify-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
+          {/* 일반 검색 로딩 상태 */}
+          {loading && !barcodeLoading && (
             <div className="glass-card rounded-3xl p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent" />
               <p className="mt-4 text-gray-600">검색 중...</p>
@@ -420,14 +465,14 @@ export default function Home() {
           )}
 
           {/* 에러 상태 */}
-          {error && (
+          {error && !barcodeLoading && (
             <div className="glass-card rounded-3xl p-8 bg-red-50 border-2 border-red-200">
               <p className="text-red-600 text-center">{error}</p>
             </div>
           )}
 
           {/* 검색 결과 */}
-          {!loading && result && result.products.length > 0 && (
+          {!loading && !barcodeLoading && result && result.products.length > 0 && (
             <>
               <div className="text-center mb-4">
                 <span className="inline-block px-4 py-2 bg-gradient-primary text-white rounded-full text-sm font-semibold shadow-lg">
@@ -447,7 +492,7 @@ export default function Home() {
           )}
 
           {/* 스캔된 상품 정보 (있을 경우) */}
-          {scannedProduct && (
+          {scannedProduct && !barcodeLoading && (
             <div className="glass-card rounded-3xl p-6 bg-blue-50 border-2 border-blue-200">
               <h3 className="font-bold text-blue-800 mb-2">스캔된 상품 정보</h3>
               <p className="text-blue-600">
@@ -460,6 +505,7 @@ export default function Home() {
 
           {/* 초기 상태 */}
           {!loading &&
+            !barcodeLoading &&
             !error &&
             (!result || result.products.length === 0) &&
             !keyword && (
@@ -478,6 +524,7 @@ export default function Home() {
 
           {/* 검색 결과 없음 */}
           {!loading &&
+            !barcodeLoading &&
             !error &&
             keyword &&
             result &&
