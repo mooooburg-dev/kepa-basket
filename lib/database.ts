@@ -1,16 +1,24 @@
 // 환경에 따른 데이터베이스 선택
-const isProduction = process.env.NODE_ENV === 'production' || process.env.POSTGRES_URL;
+const isProduction =
+  process.env.NODE_ENV === 'production' || process.env.POSTGRES_URL;
 
-let sql: any;
-let Database: any;
+// 데이터베이스 모듈 변수
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let sql: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Database: any = null;
 
-if (isProduction) {
-  // 프로덕션 환경 또는 Postgres URL이 있는 경우 PostgreSQL 사용
-  const { sql: pgSql } = require('@vercel/postgres');
-  sql = pgSql;
-} else {
-  // 로컬 개발 환경에서는 SQLite 사용
-  Database = require('better-sqlite3');
+// 데이터베이스 모듈 초기화
+async function initializeDatabaseModules() {
+  if (isProduction) {
+    // 프로덕션 환경 또는 Postgres URL이 있는 경우 PostgreSQL 사용
+    const { sql: pgSql } = await import('@vercel/postgres');
+    sql = pgSql;
+  } else {
+    // 로컬 개발 환경에서는 SQLite 사용
+    const betterSqlite3 = await import('better-sqlite3');
+    Database = betterSqlite3.default;
+  }
 }
 
 // 상품 데이터 타입 정의
@@ -25,15 +33,24 @@ export interface ProductData {
 }
 
 // SQLite 관련 변수
-let db: any;
-const path = require('path');
-const fs = require('fs');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let db: any = null;
+import * as path from 'path';
+import * as fs from 'fs';
 
 // 데이터베이스 초기화 함수
 export async function initializeDatabase() {
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
+
   if (isProduction) {
     // PostgreSQL 초기화
     try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
       // 테이블이 없으면 생성
       await sql`
         CREATE TABLE IF NOT EXISTS products (
@@ -132,9 +149,17 @@ export async function initializeDatabase() {
 
 // 상품 등록
 export async function insertProduct(productData: ProductData) {
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
+
   if (isProduction) {
     // PostgreSQL 구현
     try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
       const result = await sql`
         INSERT INTO products (
           barcode, 
@@ -187,9 +212,16 @@ export async function insertProduct(productData: ProductData) {
     const maxRetries = 3;
     const retryDelay = 100; // 100ms
 
+    if (!Database) {
+      throw new Error('SQLite module not initialized');
+    }
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const database = db || (await initializeDatabase(), db);
+        if (!database) {
+          throw new Error('Database not initialized');
+        }
 
         const stmt = database.prepare(`
           INSERT INTO products (barcode, product_name, keyword, company, country, category, description)
@@ -264,9 +296,17 @@ export async function insertProduct(productData: ProductData) {
 
 // 바코드로 상품 조회
 export async function getProductByBarcode(barcode: string) {
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
+
   if (isProduction) {
     // PostgreSQL 구현
     try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
       const result = await sql`
         SELECT * FROM products WHERE barcode = ${barcode}
       `;
@@ -305,6 +345,9 @@ export async function getProductByBarcode(barcode: string) {
     // SQLite 구현
     try {
       const database = db || (await initializeDatabase(), db);
+      if (!database) {
+        throw new Error('Database not initialized');
+      }
 
       const stmt = database.prepare(`
         SELECT * FROM products WHERE barcode = ?
@@ -346,9 +389,17 @@ export async function getProductByBarcode(barcode: string) {
 
 // 모든 상품 조회 (페이징 지원)
 export async function getAllProducts(limit = 50, offset = 0) {
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
+
   if (isProduction) {
     // PostgreSQL 구현
     try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
       const result = await sql`
         SELECT * FROM products 
         ORDER BY created_at DESC 
@@ -372,7 +423,7 @@ export async function getAllProducts(limit = 50, offset = 0) {
         updatedAt: product.updated_at,
       }));
 
-      const total = parseInt(countResult.rows[0].total);
+      const total = parseInt(String(countResult.rows[0].total));
 
       return {
         success: true,
@@ -391,6 +442,9 @@ export async function getAllProducts(limit = 50, offset = 0) {
     // SQLite 구현
     try {
       const database = db || (await initializeDatabase(), db);
+      if (!database) {
+        throw new Error('Database not initialized');
+      }
 
       const stmt = database.prepare(`
         SELECT * FROM products 
@@ -440,104 +494,242 @@ export async function updateProduct(
   id: number,
   productData: Partial<ProductData>
 ) {
-  try {
-    const fields = [];
-    const values = [];
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
 
-    if (productData.productName) {
-      fields.push('product_name');
-      values.push(productData.productName);
-    }
-    if (productData.keyword !== undefined) {
-      fields.push('keyword');
-      values.push(productData.keyword);
-    }
-    if (productData.company !== undefined) {
-      fields.push('company');
-      values.push(productData.company);
-    }
-    if (productData.country !== undefined) {
-      fields.push('country');
-      values.push(productData.country);
-    }
-    if (productData.category !== undefined) {
-      fields.push('category');
-      values.push(productData.category);
-    }
-    if (productData.description !== undefined) {
-      fields.push('description');
-      values.push(productData.description);
-    }
+  if (isProduction) {
+    // PostgreSQL 구현
+    try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
+      const fields = [];
+      const values = [];
 
-    if (fields.length === 0) {
+      if (productData.productName) {
+        fields.push('product_name');
+        values.push(productData.productName);
+      }
+      if (productData.keyword !== undefined) {
+        fields.push('keyword');
+        values.push(productData.keyword);
+      }
+      if (productData.company !== undefined) {
+        fields.push('company');
+        values.push(productData.company);
+      }
+      if (productData.country !== undefined) {
+        fields.push('country');
+        values.push(productData.country);
+      }
+      if (productData.category !== undefined) {
+        fields.push('category');
+        values.push(productData.category);
+      }
+      if (productData.description !== undefined) {
+        fields.push('description');
+        values.push(productData.description);
+      }
+
+      if (fields.length === 0) {
+        return {
+          success: false,
+          error: '업데이트할 데이터가 없습니다.',
+        };
+      }
+
+      // 동적으로 SET 절 구성
+      const setClause = fields
+        .map((field, index) => `${field} = $${index + 1}`)
+        .join(', ');
+
+      const result = await sql.query(
+        `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $${fields.length + 1}`,
+        [...values, id]
+      );
+
+      if (result.rowCount && result.rowCount > 0) {
+        return {
+          success: true,
+          message: '상품 정보가 성공적으로 업데이트되었습니다.',
+        };
+      } else {
+        return {
+          success: false,
+          error: '해당 상품을 찾을 수 없습니다.',
+        };
+      }
+    } catch (error) {
+      console.error('상품 업데이트 오류:', error);
       return {
         success: false,
-        error: '업데이트할 데이터가 없습니다.',
+        error: '상품 업데이트 중 오류가 발생했습니다.',
       };
     }
+  } else {
+    // SQLite 구현
+    try {
+      if (!Database) {
+        throw new Error('SQLite module not initialized');
+      }
+      const database = db || (await initializeDatabase(), db);
+      if (!database) {
+        throw new Error('Database not initialized');
+      }
 
-    // 동적으로 SET 절 구성
-    const setClause = fields
-      .map((field, index) => `${field} = $${index + 1}`)
-      .join(', ');
+      const fields = [];
+      const values = [];
 
-    const result = await sql.query(
-      `UPDATE products SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $${fields.length + 1}`,
-      [...values, id]
-    );
+      if (productData.productName) {
+        fields.push('product_name = ?');
+        values.push(productData.productName);
+      }
+      if (productData.keyword !== undefined) {
+        fields.push('keyword = ?');
+        values.push(productData.keyword);
+      }
+      if (productData.company !== undefined) {
+        fields.push('company = ?');
+        values.push(productData.company);
+      }
+      if (productData.country !== undefined) {
+        fields.push('country = ?');
+        values.push(productData.country);
+      }
+      if (productData.category !== undefined) {
+        fields.push('category = ?');
+        values.push(productData.category);
+      }
+      if (productData.description !== undefined) {
+        fields.push('description = ?');
+        values.push(productData.description);
+      }
 
-    if (result.rowCount && result.rowCount > 0) {
-      return {
-        success: true,
-        message: '상품 정보가 성공적으로 업데이트되었습니다.',
-      };
-    } else {
+      if (fields.length === 0) {
+        return {
+          success: false,
+          error: '업데이트할 데이터가 없습니다.',
+        };
+      }
+
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+
+      const stmt = database.prepare(`
+        UPDATE products SET ${fields.join(', ')} WHERE id = ?
+      `);
+
+      const result = stmt.run(...values);
+
+      if (result.changes && result.changes > 0) {
+        return {
+          success: true,
+          message: '상품 정보가 성공적으로 업데이트되었습니다.',
+        };
+      } else {
+        return {
+          success: false,
+          error: '해당 상품을 찾을 수 없습니다.',
+        };
+      }
+    } catch (error) {
+      console.error('상품 업데이트 오류:', error);
       return {
         success: false,
-        error: '해당 상품을 찾을 수 없습니다.',
+        error: '상품 업데이트 중 오류가 발생했습니다.',
       };
     }
-  } catch (error) {
-    console.error('상품 업데이트 오류:', error);
-    return {
-      success: false,
-      error: '상품 업데이트 중 오류가 발생했습니다.',
-    };
   }
 }
 
 // 상품 삭제
 export async function deleteProduct(id: number) {
-  try {
-    const result = await sql`
-      DELETE FROM products WHERE id = ${id}
-    `;
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
 
-    if (result.rowCount && result.rowCount > 0) {
-      return {
-        success: true,
-        message: '상품이 성공적으로 삭제되었습니다.',
-      };
-    } else {
+  if (isProduction) {
+    // PostgreSQL 구현
+    try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
+      const result = await sql`
+        DELETE FROM products WHERE id = ${id}
+      `;
+
+      if (result.rowCount && result.rowCount > 0) {
+        return {
+          success: true,
+          message: '상품이 성공적으로 삭제되었습니다.',
+        };
+      } else {
+        return {
+          success: false,
+          error: '해당 상품을 찾을 수 없습니다.',
+        };
+      }
+    } catch (error) {
+      console.error('상품 삭제 오류:', error);
       return {
         success: false,
-        error: '해당 상품을 찾을 수 없습니다.',
+        error: '상품 삭제 중 오류가 발생했습니다.',
       };
     }
-  } catch (error) {
-    console.error('상품 삭제 오류:', error);
-    return {
-      success: false,
-      error: '상품 삭제 중 오류가 발생했습니다.',
-    };
+  } else {
+    // SQLite 구현
+    try {
+      if (!Database) {
+        throw new Error('SQLite module not initialized');
+      }
+      const database = db || (await initializeDatabase(), db);
+      if (!database) {
+        throw new Error('Database not initialized');
+      }
+
+      const stmt = database.prepare(`
+        DELETE FROM products WHERE id = ?
+      `);
+
+      const result = stmt.run(id);
+
+      if (result.changes && result.changes > 0) {
+        return {
+          success: true,
+          message: '상품이 성공적으로 삭제되었습니다.',
+        };
+      } else {
+        return {
+          success: false,
+          error: '해당 상품을 찾을 수 없습니다.',
+        };
+      }
+    } catch (error) {
+      console.error('상품 삭제 오류:', error);
+      return {
+        success: false,
+        error: '상품 삭제 중 오류가 발생했습니다.',
+      };
+    }
   }
 }
 
 // 데이터베이스 상태 확인
 export async function checkDatabaseHealth() {
+  // 모듈 초기화가 되지 않았다면 초기화
+  if ((isProduction && !sql) || (!isProduction && !Database)) {
+    await initializeDatabaseModules();
+  }
+
   if (isProduction) {
     // PostgreSQL 상태 확인
     try {
+      if (!sql) {
+        throw new Error('PostgreSQL module not initialized');
+      }
       await sql`SELECT 1 as health_check`;
       return {
         success: true,
@@ -555,7 +747,13 @@ export async function checkDatabaseHealth() {
   } else {
     // SQLite 상태 확인
     try {
+      if (!Database) {
+        throw new Error('SQLite module not initialized');
+      }
       const database = db || (await initializeDatabase(), db);
+      if (!database) {
+        throw new Error('Database not initialized');
+      }
       const stmt = database.prepare('SELECT 1 as health_check');
       stmt.get();
       return {

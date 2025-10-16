@@ -85,7 +85,7 @@ export default function Home() {
   const testBarcodeAPI = async (barcode: string) => {
     setBarcodeLoading(true);
     setScannedBarcode(barcode);
-    
+
     try {
       const response = await fetch(`/api/barcode/lookup?barcode=${barcode}`);
       const data = await response.json();
@@ -261,7 +261,7 @@ export default function Home() {
         if (data?.type === 'barcode_scanned' && data?.data?.barcode) {
           const { barcode, scanId, timestamp: _timestamp } = data.data;
           console.warn(`바코드 스캔됨: ${barcode} (scanId: ${scanId})`);
-          
+
           setBarcodeLoading(true);
           setScannedBarcode(barcode);
 
@@ -437,7 +437,9 @@ export default function Home() {
               <div className="mb-4">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 rounded-full">
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
-                  <span className="text-blue-700 font-medium">바코드 조회 중...</span>
+                  <span className="text-blue-700 font-medium">
+                    바코드 조회 중...
+                  </span>
                 </div>
               </div>
               {scannedBarcode && (
@@ -449,9 +451,18 @@ export default function Home() {
                 </div>
               )}
               <div className="mt-6 flex items-center justify-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div
+                  className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                />
+                <div
+                  className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                />
+                <div
+                  className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                />
               </div>
             </div>
           )}
@@ -472,24 +483,27 @@ export default function Home() {
           )}
 
           {/* 검색 결과 */}
-          {!loading && !barcodeLoading && result && result.products.length > 0 && (
-            <>
-              <div className="text-center mb-4">
-                <span className="inline-block px-4 py-2 bg-gradient-primary text-white rounded-full text-sm font-semibold shadow-lg">
-                  {result.products.length}개의 상품을 찾았습니다
-                </span>
-              </div>
-              <div className="grid gap-4">
-                {result.products.map((product, index) => (
-                  <ProductCard
-                    key={`${product.name}-${index}`}
-                    product={product}
-                    onBuyClick={() => handleProductClick(product)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+          {!loading &&
+            !barcodeLoading &&
+            result &&
+            result.products.length > 0 && (
+              <>
+                <div className="text-center mb-4">
+                  <span className="inline-block px-4 py-2 bg-gradient-primary text-white rounded-full text-sm font-semibold shadow-lg">
+                    {result.products.length}개의 상품을 찾았습니다
+                  </span>
+                </div>
+                <div className="grid gap-4">
+                  {result.products.map((product, index) => (
+                    <ProductCard
+                      key={`${product.name}-${index}`}
+                      product={product}
+                      onBuyClick={() => handleProductClick(product)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
 
           {/* 스캔된 상품 정보 (있을 경우) */}
           {scannedProduct && !barcodeLoading && (
